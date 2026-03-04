@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Timer">
+<meta name="application-name" content="Timer">
+<meta name="theme-color" content="#C0392B">
+
+<!-- PWA manifest inline -->
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiVGltZXIiLCJzaG9ydF9uYW1lIjoiVGltZXIiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI0U4RTBDRSIsInRoZW1lX2NvbG9yIjoiI0MwMzkyQiIsIm9yaWVudGF0aW9uIjoiYW55In0=">
+
+<!-- Apple touch icon — red circle on cream (generated as inline SVG→PNG via canvas) -->
+<link rel="apple-touch-icon" id="appleIcon" href="">
+
+<title>Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --cream: #E8E0CE;
+    --bezel: #D4C9B0;
+    --face: #F0EAD8;
+    --red: #C0392B;
+    --red-dark: #922B21;
+    --text: #5A5040;
+  }
+  html, body {
+    width:100%; height:100%;
+    overflow:hidden;
+    background:#B8AD98;
+    font-family:'Oswald',sans-serif;
+  }
+  .layout {
+    width:100%; height:100%;
+    padding: calc(var(--safe-top) + 16px) calc(var(--safe-right) + 16px) calc(var(--safe-bot) + 16px) calc(var(--safe-left) + 16px);
+    background:var(--cream);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:space-evenly;
+  }
+  .brand {
+    font-size:0.6rem; font-weight:600;
+    letter-spacing:5px; text-transform:uppercase;
+    color:#8A7E68;
+  }
+  .dial-wrap { position:relative; flex-shrink:0; }
+  .dial-bezel {
+    position:absolute; inset:-8px; border-radius:50%;
+    background:var(--bezel);
+    box-shadow: 0 0 0 3px #BFB49A, inset 0 3px 8px rgba(0,0,0,0.2), inset 0 -2px 4px rgba(255,255,255,0.4);
+  }
+  .dial-face {
+    position:absolute; inset:0; border-radius:50%;
+    background:var(--face);
+    box-shadow: inset 0 4px 12px rgba(0,0,0,0.15), inset 0 -2px 6px rgba(255,255,255,0.5);
+    overflow:hidden;
+  }
+  .dial-svg, .ticks-svg { position:absolute; inset:0; width:100%; height:100%; }
+  .dial-svg { z-index:2; } .ticks-svg { z-index:3; pointer-events:none; }
+  .dial-numbers { position:absolute; inset:0; z-index:4; pointer-events:none; }
+  .dial-num {
+    position:absolute; font-family:'Oswald',sans-serif;
+    font-weight:600; color:var(--text);
+    transform:translate(-50%,-50%); line-height:1;
+  }
+  .centre-cap {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #F5EFE0, #C8BCA0);
+    box-shadow:0 2px 6px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.5);
+    z-index:6; display:flex; align-items:center; justify-content:center;
+  }
+  .time-text {
+    font-family:'IBM Plex Mono',monospace; font-weight:600;
+    color:#3A3025; text-align:center; line-height:1.2; white-space:nowrap;
+  }
+  .presets { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .preset {
+    background:#D8CEB8; border:none; border-radius:6px;
+    font-family:'Oswald',sans-serif; font-weight:500; color:var(--text);
+    cursor:pointer; letter-spacing:0.5px;
+    box-shadow:0 3px 0 #BFB49A, inset 0 -1px 0 rgba(255,255,255,0.5);
+    transition:all 0.1s;
+  }
+  .preset:active { transform:translateY(2px); box-shadow:0 1px 0 #BFB49A; }
+  .preset.active { background:var(--red); color:white; box-shadow:0 3px 0 var(--red-dark); }
+  .controls { display:flex; gap:12px; align-items:center; justify-content:center; }
+  .btn-play {
+    border-radius:8px; background:var(--red); border:none; color:white;
+    font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer;
+    box-shadow:0 4px 0 var(--red-dark), inset 0 -1px 0 rgba(255,255,255,0.15);
+    transition:all 0.1s; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-play:active { transform:translateY(2px); box-shadow:0 2px 0 var(--red-dark); }
+  .btn-small {
+    border-radius:8px; background:#D8CEB8; border:none; color:var(--text); cursor:pointer;
+    box-shadow:0 4px 0 #BFB49A, inset 0 -1px 0 rgba(255,255,255,0.5);
+    display:flex; align-items:center; justify-content:center; transition:all 0.1s;
+  }
+  .btn-small:active { transform:translateY(2px); box-shadow:0 2px 0 #BFB49A; }
+  .done-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(192,57,43,0.97);
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; z-index:99;
+    padding:calc(var(--safe-top)+20px) 20px calc(var(--safe-bot)+20px);
+  }
+  .done-overlay.show { display:flex; animation:pop 0.3s ease; }
+  @keyframes pop { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+  .done-title { font-size:3rem; font-weight:600; color:white; letter-spacing:2px; text-transform:uppercase; }
+  .done-sub { font-size:0.8rem; letter-spacing:4px; text-transform:uppercase; color:rgba(255,255,255,0.6); }
+  .btn-done {
+    margin-top:10px; background:var(--face); color:var(--red); border:none;
+    border-radius:8px; padding:14px 40px;
+    font-family:'Oswald',sans-serif; font-size:1rem; font-weight:600;
+    letter-spacing:2px; text-transform:uppercase; cursor:pointer;
+    box-shadow:0 4px 0 #BFB49A;
+  }
+  .btn-done:active { transform:translateY(2px); box-shadow:0 2px 0 #BFB49A; }
+</style>
+</head>
+<body>
+
+<div class="layout" id="layout">
+  <div class="brand">Timer</div>
+  <div class="dial-wrap" id="dialWrap">
+    <div class="dial-bezel"></div>
+    <div class="dial-face"></div>
+    <svg class="dial-svg" viewBox="0 0 260 260" id="dialSvg">
+      <path id="piePath" fill="#C0392B" opacity="0.92" d=""/>
+    </svg>
+    <svg class="ticks-svg" viewBox="0 0 260 260" id="ticksSvg"></svg>
+    <div class="dial-numbers" id="dialNumbers"></div>
+    <div class="centre-cap" id="centreCap">
+      <div class="time-text" id="timeText">05:00</div>
+    </div>
+  </div>
+  <div class="presets" id="presets">
+    <button class="preset" onclick="setPreset(1)">1 min</button>
+    <button class="preset active" onclick="setPreset(5)">5 min</button>
+    <button class="preset" onclick="setPreset(10)">10 min</button>
+    <button class="preset" onclick="setPreset(15)">15 min</button>
+    <button class="preset" onclick="setPreset(30)">30 min</button>
+  </div>
+  <div class="controls" id="controls">
+    <button class="btn-small" id="resetBtn" onclick="resetTimer()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"></polyline>
+        <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+      </svg>
+    </button>
+    <button class="btn-play" id="playBtn" onclick="toggleTimer()">
+      <svg id="playIcon" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
+      <svg id="pauseIcon" viewBox="0 0 24 24" fill="white" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      <span id="playLabel">DÉMARRER</span>
+    </button>
+    <button class="btn-small" id="soundBtn" onclick="toggleSound()">
+      <svg id="soundOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+      <svg id="soundOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+    </button>
+  </div>
+</div>
+
+<div class="done-overlay" id="doneOverlay">
+  <div class="done-title">Terminé !</div>
+  <div class="done-sub">Le temps est écoulé</div>
+  <button class="btn-done" onclick="dismissDone()">Recommencer</button>
+</div>
+
+<script>
+  // ── Generate apple-touch-icon via canvas ──
+  (function() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 180;
+    const ctx = c.getContext('2d');
+    // cream background with rounded rect
+    ctx.fillStyle = '#E8E0CE';
+    ctx.beginPath();
+    ctx.roundRect(0,0,180,180,36);
+    ctx.fill();
+    // bezel ring
+    ctx.beginPath();
+    ctx.arc(90,90,82,0,Math.PI*2);
+    ctx.strokeStyle = '#C8BCA0';
+    ctx.lineWidth = 10;
+    ctx.stroke();
+    // grey dial face
+    ctx.beginPath();
+    ctx.arc(90,90,76,0,Math.PI*2);
+    ctx.fillStyle = '#F0EAD8';
+    ctx.fill();
+    // red pie (about 75% full as preview)
+    ctx.beginPath();
+    ctx.moveTo(90,90);
+    ctx.arc(90,90,76, -Math.PI/2, -Math.PI/2 + Math.PI*1.5, false);
+    ctx.closePath();
+    ctx.fillStyle = '#C0392B';
+    ctx.fill();
+    // centre cap
+    ctx.beginPath();
+    ctx.arc(90,90,22,0,Math.PI*2);
+    ctx.fillStyle = '#D8CEB8';
+    ctx.fill();
+    // set as icon
+    document.getElementById('appleIcon').href = c.toDataURL('image/png');
+  })();
+
+  // ── Build dial ticks & numbers ──
+  const CX=130, CY=130, R=130;
+  const tickSvg = document.getElementById('ticksSvg');
+  const numDiv  = document.getElementById('dialNumbers');
+
+  for (let i=0;i<60;i++) {
+    const angle=(i/60)*360-90, rad=angle*Math.PI/180, maj=i%5===0;
+    const r1=maj?90:96;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',CX+r1*Math.cos(rad)); line.setAttribute('y1',CY+r1*Math.sin(rad));
+    line.setAttribute('x2',CX+126*Math.cos(rad)); line.setAttribute('y2',CY+126*Math.sin(rad));
+    line.setAttribute('stroke',maj?'#8A7E68':'#B0A890');
+    line.setAttribute('stroke-width',maj?'2.5':'1.2');
+    line.setAttribute('stroke-linecap','round');
+    tickSvg.appendChild(line);
+  }
+  [5,10,15,20,25,30,35,40,45,50,55,60].forEach(n=>{
+    const angle=(n/60)*360-90, rad=angle*Math.PI/180, nr=107;
+    const el=document.createElement('div');
+    el.className='dial-num'; el.textContent=n;
+    el.style.left=(CX+nr*Math.cos(rad))/260*100+'%';
+    el.style.top =(CY+nr*Math.sin(rad))/260*100+'%';
+    numDiv.appendChild(el);
+  });
+
+  // ── Responsive sizing ──
+  function resize() {
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const vw = window.innerWidth  - 32;
+    const vh = window.innerHeight - 32;
+    let dialSize = isLandscape ? Math.min(vh-20, vw*0.55) : Math.min(vw-20, vh*0.55);
+    dialSize = Math.max(dialSize, 160);
+
+    const wrap = document.getElementById('dialWrap');
+    wrap.style.width = wrap.style.height = dialSize+'px';
+
+    const capSize = Math.round(dialSize*0.20);
+    const cap = document.getElementById('centreCap');
+    cap.style.width = cap.style.height = capSize+'px';
+    document.getElementById('timeText').style.fontSize = Math.round(capSize*0.28)+'px';
+
+    const numFs = Math.round(dialSize*0.075);
+    document.querySelectorAll('.dial-num').forEach(el=>el.style.fontSize=numFs+'px');
+
+    const pSize = isLandscape ? Math.round(vh*0.065) : Math.round(vw*0.06);
+    document.querySelectorAll('.preset').forEach(el=>{
+      el.style.fontSize = Math.round(pSize*0.85)+'px';
+      el.style.padding  = `${pSize*0.35}px ${pSize*0.8}px`;
+    });
+
+    const btnH = isLandscape ? Math.round(vh*0.11) : Math.round(vw*0.12);
+    const iconS = Math.round(btnH*0.38);
+    const playBtn = document.getElementById('playBtn');
+    playBtn.style.height  = btnH+'px';
+    playBtn.style.padding = `0 ${btnH*0.5}px`;
+    playBtn.style.fontSize= Math.round(btnH*0.28)+'px';
+    document.querySelectorAll('#playIcon,#pauseIcon').forEach(el=>{el.style.width=el.style.height=iconS+'px';});
+    ['resetBtn','soundBtn'].forEach(id=>{
+      const b=document.getElementById(id);
+      b.style.width=b.style.height=btnH+'px';
+      b.querySelectorAll('svg').forEach(s=>{s.style.width=s.style.height=iconS+'px';});
+    });
+
+    const layout=document.getElementById('layout');
+    layout.style.flexDirection = isLandscape?'row':'column';
+    layout.style.flexWrap      = isLandscape?'wrap':'nowrap';
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange',()=>setTimeout(resize,100));
+  resize();
+
+  // ── Timer logic ──
+  let total=5*60, remaining=total, running=false, timer=null, soundOn=true, audioCtx=null;
+  const piePath=document.getElementById('piePath');
+
+  function polarToXY(deg){const rad=(deg-90)*Math.PI/180;return[CX+R*Math.cos(rad),CY+R*Math.sin(rad)];}
+  function buildPie(ratio){
+    if(ratio<=0){piePath.setAttribute('d','');return;}
+    if(ratio>=1){piePath.setAttribute('d',`M${CX} ${CY} m-${R} 0 a${R} ${R} 0 1 0 ${R*2} 0 a${R} ${R} 0 1 0 -${R*2} 0`);return;}
+    const angle=ratio*360,[x,y]=polarToXY(angle);
+    piePath.setAttribute('d',`M${CX} ${CY} L${CX} ${CY-R} A${R} ${R} 0 ${angle>180?1:0} 1 ${x} ${y} Z`);
+  }
+  function fmt(s){return`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+  function render(){document.getElementById('timeText').textContent=fmt(remaining);buildPie(remaining/total);}
+  function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+  function beep(freq=880,dur=0.12,vol=0.25){
+    if(!soundOn)return;
+    try{const ctx=getCtx(),o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;o.type='sine';
+      g.gain.setValueAtTime(vol,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+      o.start();o.stop(ctx.currentTime+dur);}catch(e){}
+  }
+  function playFinish(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.3,0.35),i*160));}
+  function setPlayState(on){
+    running=on;
+    document.getElementById('playIcon').style.display =on?'none':'';
+    document.getElementById('pauseIcon').style.display=on?'':'none';
+    document.getElementById('playLabel').textContent  =on?'PAUSE':'DÉMARRER';
+  }
+  function toggleTimer(){
+    if(remaining<=0){resetTimer();return;}
+    if(!running){
+      beep(660,0.1);setPlayState(true);
+      timer=setInterval(()=>{
+        remaining--;
+        if(remaining<=10&&remaining>0)beep(500+remaining*30,0.07,0.15);
+        render();
+        if(remaining<=0){clearInterval(timer);setPlayState(false);playFinish();setTimeout(()=>document.getElementById('doneOverlay').classList.add('show'),400);}
+      },1000);
+    }else{beep(440,0.08);clearInterval(timer);setPlayState(false);}
+  }
+  function resetTimer(){clearInterval(timer);setPlayState(false);remaining=total;render();beep(523,0.1);}
+  function setPreset(min){
+    clearInterval(timer);setPlayState(false);total=min*60;remaining=total;render();
+    document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('active',b.textContent.trim()===min+' min'));
+    beep(660,0.1);
+  }
+  function toggleSound(){
+    soundOn=!soundOn;
+    document.getElementById('soundOn').style.display =soundOn?'':'none';
+    document.getElementById('soundOff').style.display=soundOn?'none':'';
+  }
+  function dismissDone(){document.getElementById('doneOverlay').classList.remove('show');resetTimer();}
+  render();
+</script>
+</body>
+</html>
