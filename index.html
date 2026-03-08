@@ -6,15 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Timer">
-<meta name="application-name" content="Timer">
 <meta name="theme-color" content="#C0392B">
-
-<!-- PWA manifest inline -->
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiVGltZXIiLCJzaG9ydF9uYW1lIjoiVGltZXIiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI0U4RTBDRSIsInRoZW1lX2NvbG9yIjoiI0MwMzkyQiIsIm9yaWVudGF0aW9uIjoiYW55In0=">
-
-<!-- Apple touch icon — red circle on cream (generated as inline SVG→PNG via canvas) -->
 <link rel="apple-touch-icon" id="appleIcon" href="">
-
 <title>Timer</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -24,81 +18,79 @@
     --safe-bot: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
     --safe-right: env(safe-area-inset-right, 0px);
-    --cream: #E8E0CE;
-    --bezel: #D4C9B0;
-    --face: #F0EAD8;
-    --red: #C0392B;
-    --red-dark: #922B21;
-    --text: #5A5040;
+    --cream: #E8E0CE; --bezel: #D4C9B0; --face: #F0EAD8;
+    --red: #C0392B; --red-dark: #922B21; --text: #5A5040;
   }
-  html, body {
-    width:100%; height:100%;
-    overflow:hidden;
-    background:#B8AD98;
-    font-family:'Oswald',sans-serif;
+  html, body { width:100%; height:100%; overflow:hidden; background:#B8AD98; font-family:'Oswald',sans-serif; }
+
+  /* ── Background image layer (revealed as red shrinks) ── */
+  #bgImage {
+    position:fixed; inset:0; z-index:0;
+    background-size:cover; background-position:center;
+    opacity:0; transition:opacity 0.5s ease;
+    pointer-events:none;
   }
+
   .layout {
+    position:relative; z-index:1;
     width:100%; height:100%;
-    padding: calc(var(--safe-top) + 16px) calc(var(--safe-right) + 16px) calc(var(--safe-bot) + 16px) calc(var(--safe-left) + 16px);
+    padding: calc(var(--safe-top)+16px) calc(var(--safe-right)+16px) calc(var(--safe-bot)+16px) calc(var(--safe-left)+16px);
     background:var(--cream);
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:space-evenly;
+    display:flex; flex-direction:column; align-items:center; justify-content:space-evenly;
+    transition: background 0.5s ease;
   }
-  .brand {
-    font-size:0.6rem; font-weight:600;
-    letter-spacing:5px; text-transform:uppercase;
-    color:#8A7E68;
-  }
-  .dial-wrap { position:relative; flex-shrink:0; }
+  /* when bg image mode is on, layout becomes semi-transparent */
+  .layout.bg-active { background: rgba(232,224,206,0.82); }
+
+  .brand { font-size:0.6rem; font-weight:600; letter-spacing:5px; text-transform:uppercase; color:#8A7E68; }
+
+  /* ── Dial ── */
+  .dial-wrap { position:relative; flex-shrink:0; touch-action:none; }
   .dial-bezel {
-    position:absolute; inset:-8px; border-radius:50%;
-    background:var(--bezel);
+    position:absolute; inset:-8px; border-radius:50%; background:var(--bezel);
     box-shadow: 0 0 0 3px #BFB49A, inset 0 3px 8px rgba(0,0,0,0.2), inset 0 -2px 4px rgba(255,255,255,0.4);
   }
   .dial-face {
-    position:absolute; inset:0; border-radius:50%;
-    background:var(--face);
+    position:absolute; inset:0; border-radius:50%; background:var(--face);
     box-shadow: inset 0 4px 12px rgba(0,0,0,0.15), inset 0 -2px 6px rgba(255,255,255,0.5);
     overflow:hidden;
+  }
+  /* image visible inside dial as red shrinks */
+  .dial-image {
+    position:absolute; inset:0; border-radius:50%;
+    background-size:cover; background-position:center;
+    opacity:0; transition:opacity 0.5s;
+    z-index:1;
   }
   .dial-svg, .ticks-svg { position:absolute; inset:0; width:100%; height:100%; }
   .dial-svg { z-index:2; } .ticks-svg { z-index:3; pointer-events:none; }
   .dial-numbers { position:absolute; inset:0; z-index:4; pointer-events:none; }
   .dial-num {
-    position:absolute; font-family:'Oswald',sans-serif;
-    font-weight:600; color:var(--text);
+    position:absolute; font-family:'Oswald',sans-serif; font-weight:600; color:var(--text);
     transform:translate(-50%,-50%); line-height:1;
   }
   .centre-cap {
-    position:absolute; top:50%; left:50%;
-    transform:translate(-50%,-50%);
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     border-radius:50%;
-    background:radial-gradient(circle at 35% 35%, #F5EFE0, #C8BCA0);
-    box-shadow:0 2px 6px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.5);
+    background: rgba(245,239,224,0.35);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    box-shadow: 0 1px 8px rgba(0,0,0,0.10), inset 0 1px 2px rgba(255,255,255,0.4);
     z-index:6; display:flex; align-items:center; justify-content:center;
   }
   .time-text {
-    font-family:'IBM Plex Mono',monospace; font-weight:600;
-    color:#3A3025; text-align:center; line-height:1.2; white-space:nowrap;
+    font-family:'IBM Plex Mono',monospace; font-weight:400;
+    color:rgba(58,48,37,0.75); text-align:center; line-height:1.2; white-space:nowrap;
   }
-  .presets { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
-  .preset {
-    background:#D8CEB8; border:none; border-radius:6px;
-    font-family:'Oswald',sans-serif; font-weight:500; color:var(--text);
-    cursor:pointer; letter-spacing:0.5px;
-    box-shadow:0 3px 0 #BFB49A, inset 0 -1px 0 rgba(255,255,255,0.5);
-    transition:all 0.1s;
-  }
-  .preset:active { transform:translateY(2px); box-shadow:0 1px 0 #BFB49A; }
-  .preset.active { background:var(--red); color:white; box-shadow:0 3px 0 var(--red-dark); }
-  .controls { display:flex; gap:12px; align-items:center; justify-content:center; }
+
+
+
+  /* ── Controls row ── */
+  .controls { display:flex; gap:10px; align-items:center; justify-content:center; }
   .btn-play {
     border-radius:8px; background:var(--red); border:none; color:white;
-    font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:2px;
-    text-transform:uppercase; cursor:pointer;
-    box-shadow:0 4px 0 var(--red-dark), inset 0 -1px 0 rgba(255,255,255,0.15);
+    font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+    cursor:pointer; box-shadow:0 4px 0 var(--red-dark), inset 0 -1px 0 rgba(255,255,255,0.15);
     transition:all 0.1s; display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .btn-play:active { transform:translateY(2px); box-shadow:0 2px 0 var(--red-dark); }
@@ -108,34 +100,62 @@
     display:flex; align-items:center; justify-content:center; transition:all 0.1s;
   }
   .btn-small:active { transform:translateY(2px); box-shadow:0 2px 0 #BFB49A; }
-  .done-overlay {
-    display:none; position:fixed; inset:0;
-    background:rgba(192,57,43,0.97);
-    flex-direction:column; align-items:center; justify-content:center;
-    gap:14px; z-index:99;
-    padding:calc(var(--safe-top)+20px) 20px calc(var(--safe-bot)+20px);
+  /* active/on state for toggle buttons */
+  .btn-small.on { background:var(--red); color:white; box-shadow:0 4px 0 var(--red-dark); }
+  .btn-small.on:active { box-shadow:0 2px 0 var(--red-dark); }
+
+  /* ── Options row ── */
+  .options-row {
+    display:flex; gap:10px; align-items:center; justify-content:center;
   }
-  .done-overlay.show { display:flex; animation:pop 0.3s ease; }
-  @keyframes pop { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
-  .done-title { font-size:3rem; font-weight:600; color:white; letter-spacing:2px; text-transform:uppercase; }
-  .done-sub { font-size:0.8rem; letter-spacing:4px; text-transform:uppercase; color:rgba(255,255,255,0.6); }
-  .btn-done {
-    margin-top:10px; background:var(--face); color:var(--red); border:none;
-    border-radius:8px; padding:14px 40px;
-    font-family:'Oswald',sans-serif; font-size:1rem; font-weight:600;
-    letter-spacing:2px; text-transform:uppercase; cursor:pointer;
-    box-shadow:0 4px 0 #BFB49A;
+  .opt-label {
+    font-size:0.62rem; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+    color:#8A7E68; white-space:nowrap;
   }
-  .btn-done:active { transform:translateY(2px); box-shadow:0 2px 0 #BFB49A; }
+
+  /* image picker thumbnails */
+  .img-picker {
+    display:none; gap:6px; align-items:center; justify-content:center; flex-wrap:wrap;
+  }
+  .img-picker.visible { display:flex; }
+  .img-thumb {
+    width:36px; height:36px; border-radius:50%;
+    border:2.5px solid #BFB49A; cursor:pointer;
+    overflow:hidden; background:#D8CEB8;
+    transition:border-color 0.15s, transform 0.1s;
+    flex-shrink:0;
+  }
+  .img-thumb:active { transform:scale(0.9); }
+  .img-thumb.selected { border-color:var(--red); }
+  .img-thumb canvas { width:100%; height:100%; display:block; }
+  /* random option thumb */
+  .img-thumb.random-thumb {
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.1rem; background:#D8CEB8;
+  }
+
+  /* ── Confetti canvas ── */
+  #confettiCanvas {
+    position:fixed; inset:0; z-index:99; pointer-events:none;
+    opacity:0; transition:opacity 0.4s;
+  }
+  #confettiCanvas.show { opacity:1; }
 </style>
 </head>
 <body>
 
+<!-- Background image (full screen, behind everything) -->
+<div id="bgImage"></div>
+
 <div class="layout" id="layout">
   <div class="brand">Timer</div>
+
   <div class="dial-wrap" id="dialWrap">
     <div class="dial-bezel"></div>
-    <div class="dial-face"></div>
+    <div class="dial-face">
+      <!-- image revealed under red -->
+      <div class="dial-image" id="dialImage"></div>
+    </div>
     <svg class="dial-svg" viewBox="0 0 260 260" id="dialSvg">
       <path id="piePath" fill="#C0392B" opacity="0.92" d=""/>
     </svg>
@@ -145,200 +165,773 @@
       <div class="time-text" id="timeText">05:00</div>
     </div>
   </div>
-  <div class="presets" id="presets">
-    <button class="preset" onclick="setPreset(1)">1 min</button>
-    <button class="preset active" onclick="setPreset(5)">5 min</button>
-    <button class="preset" onclick="setPreset(10)">10 min</button>
-    <button class="preset" onclick="setPreset(15)">15 min</button>
-    <button class="preset" onclick="setPreset(30)">30 min</button>
-  </div>
+
+
+
+  <!-- Main controls -->
   <div class="controls" id="controls">
+    <!-- Reset -->
     <button class="btn-small" id="resetBtn" onclick="resetTimer()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="1 4 1 10 7 10"></polyline>
-        <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+        <polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
       </svg>
     </button>
+    <!-- +1 min -->
+    <button class="btn-small btn-addmin" id="addMinBtn" onclick="addMinute()" title="+1 minute">
+      <span style="font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:-0.5px;line-height:1;">+1'</span>
+    </button>
+    <!-- Play/Pause -->
     <button class="btn-play" id="playBtn" onclick="toggleTimer()">
       <svg id="playIcon" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
       <svg id="pauseIcon" viewBox="0 0 24 24" fill="white" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
       <span id="playLabel">DÉMARRER</span>
     </button>
+    <!-- Sound -->
     <button class="btn-small" id="soundBtn" onclick="toggleSound()">
       <svg id="soundOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
       <svg id="soundOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
     </button>
   </div>
+
+  <!-- Options row: wake lock + image -->
+  <div class="options-row" id="optionsRow">
+    <!-- Wake lock -->
+    <button class="btn-small" id="wakeLockBtn" onclick="toggleWakeLock()" title="Garder l'écran allumé">
+      <!-- Moon/sun icon -->
+      <svg id="wakeOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+      <svg id="wakeOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+    </button>
+
+    <!-- Image toggle -->
+    <button class="btn-small" id="imgToggleBtn" onclick="toggleImageMode()" title="Image de fond">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </button>
+
+    <!-- Image picker (shown when image mode on) -->
+    <div class="img-picker" id="imgPicker">
+      <div class="img-thumb random-thumb selected" id="thumbRandom" onclick="selectImage(-1)" title="Aléatoire">🔀</div>
+      <div class="img-thumb" id="thumb0" onclick="selectImage(0)"><canvas id="tc0"></canvas></div>
+      <div class="img-thumb" id="thumb1" onclick="selectImage(1)"><canvas id="tc1"></canvas></div>
+      <div class="img-thumb" id="thumb2" onclick="selectImage(2)"><canvas id="tc2"></canvas></div>
+      <div class="img-thumb" id="thumb3" onclick="selectImage(3)"><canvas id="tc3"></canvas></div>
+      <div class="img-thumb" id="thumb4" onclick="selectImage(4)"><canvas id="tc4"></canvas></div>
+      <div class="img-thumb" id="thumb5" onclick="selectImage(5)"><canvas id="tc5"></canvas></div>
+      <div class="img-thumb" id="thumb6" onclick="selectImage(6)"><canvas id="tc6"></canvas></div>
+    </div>
+  </div>
 </div>
 
-<div class="done-overlay" id="doneOverlay">
-  <div class="done-title">Terminé !</div>
-  <div class="done-sub">Le temps est écoulé</div>
-  <button class="btn-done" onclick="dismissDone()">Recommencer</button>
-</div>
+<canvas id="confettiCanvas"></canvas>
 
 <script>
-  // ── Generate apple-touch-icon via canvas ──
-  (function() {
-    const c = document.createElement('canvas');
-    c.width = c.height = 180;
-    const ctx = c.getContext('2d');
-    // cream background with rounded rect
-    ctx.fillStyle = '#E8E0CE';
-    ctx.beginPath();
-    ctx.roundRect(0,0,180,180,36);
-    ctx.fill();
-    // bezel ring
-    ctx.beginPath();
-    ctx.arc(90,90,82,0,Math.PI*2);
-    ctx.strokeStyle = '#C8BCA0';
-    ctx.lineWidth = 10;
-    ctx.stroke();
-    // grey dial face
-    ctx.beginPath();
-    ctx.arc(90,90,76,0,Math.PI*2);
-    ctx.fillStyle = '#F0EAD8';
-    ctx.fill();
-    // red pie (about 75% full as preview)
-    ctx.beginPath();
-    ctx.moveTo(90,90);
-    ctx.arc(90,90,76, -Math.PI/2, -Math.PI/2 + Math.PI*1.5, false);
-    ctx.closePath();
-    ctx.fillStyle = '#C0392B';
-    ctx.fill();
-    // centre cap
-    ctx.beginPath();
-    ctx.arc(90,90,22,0,Math.PI*2);
-    ctx.fillStyle = '#D8CEB8';
-    ctx.fill();
-    // set as icon
-    document.getElementById('appleIcon').href = c.toDataURL('image/png');
-  })();
+// ═══════════════════════════════════════════
+// 1. APPLE ICON
+// ═══════════════════════════════════════════
+(function(){
+  const c=document.createElement('canvas'); c.width=c.height=180;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#E8E0CE'; ctx.beginPath(); ctx.roundRect(0,0,180,180,36); ctx.fill();
+  ctx.beginPath(); ctx.arc(90,90,82,0,Math.PI*2); ctx.strokeStyle='#C8BCA0'; ctx.lineWidth=10; ctx.stroke();
+  ctx.beginPath(); ctx.arc(90,90,76,0,Math.PI*2); ctx.fillStyle='#F0EAD8'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(90,90); ctx.arc(90,90,76,-Math.PI/2,-Math.PI/2+Math.PI*1.5,false); ctx.closePath(); ctx.fillStyle='#C0392B'; ctx.fill();
+  ctx.beginPath(); ctx.arc(90,90,22,0,Math.PI*2); ctx.fillStyle='#D8CEB8'; ctx.fill();
+  document.getElementById('appleIcon').href=c.toDataURL('image/png');
+})();
 
-  // ── Build dial ticks & numbers ──
-  const CX=130, CY=130, R=130;
-  const tickSvg = document.getElementById('ticksSvg');
-  const numDiv  = document.getElementById('dialNumbers');
+// ═══════════════════════════════════════════
+// 2. DRAW THE 4 IMAGES (canvas-based SVG-style illustrations)
+// ═══════════════════════════════════════════
+function drawDuck(canvas, multicolor) {
+  // Yellow duck (or rainbow duck)
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0,0,W,H);
 
-  for (let i=0;i<60;i++) {
-    const angle=(i/60)*360-90, rad=angle*Math.PI/180, maj=i%5===0;
-    const r1=maj?90:96;
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',CX+r1*Math.cos(rad)); line.setAttribute('y1',CY+r1*Math.sin(rad));
-    line.setAttribute('x2',CX+126*Math.cos(rad)); line.setAttribute('y2',CY+126*Math.sin(rad));
-    line.setAttribute('stroke',maj?'#8A7E68':'#B0A890');
-    line.setAttribute('stroke-width',maj?'2.5':'1.2');
-    line.setAttribute('stroke-linecap','round');
-    tickSvg.appendChild(line);
+  // Cream background
+  c.fillStyle='#F0EAD8'; c.beginPath(); c.arc(W/2,H/2,W/2,0,Math.PI*2); c.fill();
+
+  const s = W/100; // scale factor
+
+  // Body
+  const bodyColor = multicolor
+    ? (() => { const g=c.createRadialGradient(50*s,60*s,5*s,50*s,60*s,30*s); g.addColorStop(0,'#FF6B6B'); g.addColorStop(0.4,'#FFE66D'); g.addColorStop(0.7,'#4ECDC4'); g.addColorStop(1,'#A8E6CF'); return g; })()
+    : '#FFD60A';
+  c.fillStyle=bodyColor;
+  c.beginPath(); c.ellipse(50*s,65*s,28*s,22*s,0,0,Math.PI*2); c.fill();
+
+  // Wing highlight
+  c.fillStyle= multicolor ? 'rgba(255,255,255,0.3)' : '#FFE566';
+  c.beginPath(); c.ellipse(40*s,60*s,12*s,8*s,-0.3,0,Math.PI*2); c.fill();
+
+  // Head
+  c.fillStyle= multicolor ? '#FF6B6B' : '#FFD60A';
+  c.beginPath(); c.arc(62*s,42*s,18*s,0,Math.PI*2); c.fill();
+
+  // Eye white
+  c.fillStyle='white'; c.beginPath(); c.arc(69*s,38*s,5*s,0,Math.PI*2); c.fill();
+  // Eye pupil
+  c.fillStyle='#2D1A0E'; c.beginPath(); c.arc(70*s,38*s,3*s,0,Math.PI*2); c.fill();
+  // Eye shine
+  c.fillStyle='white'; c.beginPath(); c.arc(71*s,37*s,1*s,0,Math.PI*2); c.fill();
+
+  // Beak
+  c.fillStyle='#FF8C00';
+  c.beginPath(); c.moveTo(78*s,43*s); c.lineTo(90*s,40*s); c.lineTo(88*s,48*s); c.lineTo(78*s,47*s); c.closePath(); c.fill();
+
+  // Water ripple
+  c.strokeStyle='rgba(100,180,255,0.5)'; c.lineWidth=2*s; c.lineCap='round';
+  c.beginPath(); c.ellipse(50*s,84*s,30*s,5*s,0,0,Math.PI*2); c.stroke();
+  c.beginPath(); c.ellipse(50*s,84*s,18*s,3*s,0,0,Math.PI*2); c.stroke();
+}
+
+function drawFish(canvas) {
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0,0,W,H);
+  const s = W/100;
+
+  // Background — light blue water tint inside circle
+  c.fillStyle='#E8F4FD'; c.beginPath(); c.arc(W/2,H/2,W/2,0,Math.PI*2); c.fill();
+
+  // Tail fin
+  c.fillStyle='#E8472A';
+  c.beginPath(); c.moveTo(22*s,50*s); c.lineTo(8*s,32*s); c.lineTo(8*s,68*s); c.closePath(); c.fill();
+
+  // Body
+  const g=c.createRadialGradient(55*s,50*s,5*s,55*s,50*s,28*s);
+  g.addColorStop(0,'#FF6B47'); g.addColorStop(1,'#C0392B');
+  c.fillStyle=g;
+  c.beginPath(); c.ellipse(55*s,50*s,30*s,20*s,0,0,Math.PI*2); c.fill();
+
+  // Scales pattern
+  c.strokeStyle='rgba(255,255,255,0.25)'; c.lineWidth=1.5*s;
+  for(let row=0;row<3;row++){
+    for(let col=0;col<4;col++){
+      const x=(35+col*10)*s, y=(38+row*8)*s;
+      c.beginPath(); c.arc(x,y,5*s,0,Math.PI); c.stroke();
+    }
   }
-  [5,10,15,20,25,30,35,40,45,50,55,60].forEach(n=>{
-    const angle=(n/60)*360-90, rad=angle*Math.PI/180, nr=107;
-    const el=document.createElement('div');
-    el.className='dial-num'; el.textContent=n;
-    el.style.left=(CX+nr*Math.cos(rad))/260*100+'%';
-    el.style.top =(CY+nr*Math.sin(rad))/260*100+'%';
-    numDiv.appendChild(el);
+
+  // Belly highlight
+  c.fillStyle='rgba(255,200,180,0.4)';
+  c.beginPath(); c.ellipse(55*s,57*s,22*s,10*s,0,0,Math.PI*2); c.fill();
+
+  // Dorsal fin
+  c.fillStyle='#E8472A';
+  c.beginPath(); c.moveTo(42*s,32*s); c.lineTo(55*s,18*s); c.lineTo(68*s,32*s); c.closePath(); c.fill();
+
+  // Pectoral fin
+  c.fillStyle='rgba(255,120,80,0.7)';
+  c.beginPath(); c.ellipse(50*s,55*s,8*s,5*s,0.5,0,Math.PI*2); c.fill();
+
+  // Eye
+  c.fillStyle='white'; c.beginPath(); c.arc(76*s,47*s,6*s,0,Math.PI*2); c.fill();
+  c.fillStyle='#1a0a00'; c.beginPath(); c.arc(77*s,47*s,3.5*s,0,Math.PI*2); c.fill();
+  c.fillStyle='white'; c.beginPath(); c.arc(78*s,46*s,1.2*s,0,Math.PI*2); c.fill();
+
+  // Mouth smile
+  c.strokeStyle='rgba(255,255,255,0.6)'; c.lineWidth=2*s; c.lineCap='round';
+  c.beginPath(); c.arc(84*s,52*s,4*s,3.3,Math.PI*2); c.stroke();
+
+  // Bubbles
+  c.strokeStyle='rgba(100,180,255,0.6)'; c.lineWidth=1.5*s;
+  [[88,38,3],[92,28,2],[85,22,2.5]].forEach(([x,y,r])=>{
+    c.beginPath(); c.arc(x*s,y*s,r*s,0,Math.PI*2); c.stroke();
   });
+}
 
-  // ── Responsive sizing ──
-  function resize() {
-    const isLandscape = window.innerWidth > window.innerHeight;
-    const vw = window.innerWidth  - 32;
-    const vh = window.innerHeight - 32;
-    let dialSize = isLandscape ? Math.min(vh-20, vw*0.55) : Math.min(vw-20, vh*0.55);
-    dialSize = Math.max(dialSize, 160);
+function drawFlower(canvas) {
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0,0,W,H);
+  const s = W/100;
 
-    const wrap = document.getElementById('dialWrap');
-    wrap.style.width = wrap.style.height = dialSize+'px';
+  // Background
+  c.fillStyle='#F5EAD8'; c.beginPath(); c.arc(W/2,H/2,W/2,0,Math.PI*2); c.fill();
 
-    const capSize = Math.round(dialSize*0.20);
-    const cap = document.getElementById('centreCap');
-    cap.style.width = cap.style.height = capSize+'px';
-    document.getElementById('timeText').style.fontSize = Math.round(capSize*0.28)+'px';
+  // Stem
+  c.strokeStyle='#5D8A3C'; c.lineWidth=4*s; c.lineCap='round';
+  c.beginPath(); c.moveTo(50*s,88*s); c.bezierCurveTo(45*s,75*s,55*s,65*s,50*s,52*s); c.stroke();
 
-    const numFs = Math.round(dialSize*0.075);
-    document.querySelectorAll('.dial-num').forEach(el=>el.style.fontSize=numFs+'px');
+  // Leaf
+  c.fillStyle='#6DB33F';
+  c.beginPath(); c.moveTo(50*s,72*s); c.bezierCurveTo(35*s,65*s,30*s,55*s,38*s,58*s); c.bezierCurveTo(42*s,62*s,50*s,72*s,50*s,72*s); c.closePath(); c.fill();
 
-    const pSize = isLandscape ? Math.round(vh*0.065) : Math.round(vw*0.06);
-    document.querySelectorAll('.preset').forEach(el=>{
-      el.style.fontSize = Math.round(pSize*0.85)+'px';
-      el.style.padding  = `${pSize*0.35}px ${pSize*0.8}px`;
-    });
-
-    const btnH = isLandscape ? Math.round(vh*0.11) : Math.round(vw*0.12);
-    const iconS = Math.round(btnH*0.38);
-    const playBtn = document.getElementById('playBtn');
-    playBtn.style.height  = btnH+'px';
-    playBtn.style.padding = `0 ${btnH*0.5}px`;
-    playBtn.style.fontSize= Math.round(btnH*0.28)+'px';
-    document.querySelectorAll('#playIcon,#pauseIcon').forEach(el=>{el.style.width=el.style.height=iconS+'px';});
-    ['resetBtn','soundBtn'].forEach(id=>{
-      const b=document.getElementById(id);
-      b.style.width=b.style.height=btnH+'px';
-      b.querySelectorAll('svg').forEach(s=>{s.style.width=s.style.height=iconS+'px';});
-    });
-
-    const layout=document.getElementById('layout');
-    layout.style.flexDirection = isLandscape?'row':'column';
-    layout.style.flexWrap      = isLandscape?'wrap':'nowrap';
+  // Petals (8 petals, rainbow)
+  const petalColors=['#FF6B6B','#FF9F43','#FFD93D','#6BCB77','#4D96FF','#845EC2','#FF6B9D','#FF8066'];
+  for(let i=0;i<8;i++){
+    const angle=(i/8)*Math.PI*2 - Math.PI/2;
+    const px=50*s + Math.cos(angle)*18*s;
+    const py=48*s + Math.sin(angle)*18*s;
+    c.fillStyle=petalColors[i];
+    c.beginPath();
+    c.ellipse(px,py,9*s,6*s,angle,0,Math.PI*2);
+    c.fill();
   }
-  window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange',()=>setTimeout(resize,100));
-  resize();
 
-  // ── Timer logic ──
-  let total=5*60, remaining=total, running=false, timer=null, soundOn=true, audioCtx=null;
-  const piePath=document.getElementById('piePath');
+  // Centre
+  const cg=c.createRadialGradient(50*s,48*s,2*s,50*s,48*s,10*s);
+  cg.addColorStop(0,'#FFE066'); cg.addColorStop(1,'#FF8C00');
+  c.fillStyle=cg;
+  c.beginPath(); c.arc(50*s,48*s,10*s,0,Math.PI*2); c.fill();
 
-  function polarToXY(deg){const rad=(deg-90)*Math.PI/180;return[CX+R*Math.cos(rad),CY+R*Math.sin(rad)];}
-  function buildPie(ratio){
-    if(ratio<=0){piePath.setAttribute('d','');return;}
-    if(ratio>=1){piePath.setAttribute('d',`M${CX} ${CY} m-${R} 0 a${R} ${R} 0 1 0 ${R*2} 0 a${R} ${R} 0 1 0 -${R*2} 0`);return;}
-    const angle=ratio*360,[x,y]=polarToXY(angle);
-    piePath.setAttribute('d',`M${CX} ${CY} L${CX} ${CY-R} A${R} ${R} 0 ${angle>180?1:0} 1 ${x} ${y} Z`);
+  // Centre dots
+  c.fillStyle='rgba(120,60,0,0.4)';
+  [[-3,-3],[3,-3],[0,3],[-4,1],[4,1]].forEach(([dx,dy])=>{
+    c.beginPath(); c.arc((50+dx)*s,(48+dy)*s,1.5*s,0,Math.PI*2); c.fill();
+  });
+}
+
+// Generate all 4 images as data URLs
+// ── New illustrations ──
+function drawRobot(canvas) {
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0,0,W,H);
+  const s = W/100;
+  // bg
+  c.fillStyle='#E8F0F8'; c.beginPath(); c.arc(W/2,H/2,W/2,0,Math.PI*2); c.fill();
+  // antenna
+  c.strokeStyle='#7B8FA1'; c.lineWidth=2.5*s; c.lineCap='round';
+  c.beginPath(); c.moveTo(50*s,18*s); c.lineTo(50*s,28*s); c.stroke();
+  c.fillStyle='#E74C3C'; c.beginPath(); c.arc(50*s,15*s,5*s,0,Math.PI*2); c.fill();
+  // head
+  const hg=c.createLinearGradient(32*s,28*s,68*s,52*s);
+  hg.addColorStop(0,'#BDC8D4'); hg.addColorStop(1,'#8FA3B1');
+  c.fillStyle=hg;
+  c.beginPath(); c.roundRect(32*s,28*s,36*s,24*s,6*s); c.fill();
+  // eyes
+  [[42,37],[58,37]].forEach(([x,y])=>{
+    c.fillStyle='#1A2530'; c.beginPath(); c.arc(x*s,y*s,5*s,0,Math.PI*2); c.fill();
+    c.fillStyle='#4ECDC4'; c.beginPath(); c.arc(x*s,y*s,3*s,0,Math.PI*2); c.fill();
+    c.fillStyle='white'; c.beginPath(); c.arc((x+1.5)*s,(y-1.5)*s,1.2*s,0,Math.PI*2); c.fill();
+  });
+  // mouth
+  c.strokeStyle='#4ECDC4'; c.lineWidth=2*s;
+  c.beginPath(); c.moveTo(42*s,46*s); c.lineTo(58*s,46*s); c.stroke();
+  [[44,46],[50,46],[56,46]].forEach(([x,y])=>{
+    c.beginPath(); c.moveTo(x*s,y*s); c.lineTo(x*s,(y+3)*s); c.stroke();
+  });
+  // neck
+  c.fillStyle='#8FA3B1';
+  c.fillRect(46*s,52*s,8*s,5*s);
+  // body
+  const bg2=c.createLinearGradient(28*s,57*s,72*s,88*s);
+  bg2.addColorStop(0,'#BDC8D4'); bg2.addColorStop(1,'#8FA3B1');
+  c.fillStyle=bg2;
+  c.beginPath(); c.roundRect(28*s,57*s,44*s,30*s,8*s); c.fill();
+  // chest panel
+  c.fillStyle='rgba(255,255,255,0.2)';
+  c.beginPath(); c.roundRect(35*s,62*s,30*s,18*s,4*s); c.fill();
+  // chest buttons
+  [['#E74C3C',41,69],['#F39C12',50,69],['#27AE60',59,69]].forEach(([col,x,y])=>{
+    c.fillStyle=col; c.beginPath(); c.arc(x*s,y*s,4*s,0,Math.PI*2); c.fill();
+  });
+  // arms
+  [[18,60,10,20],[72,60,10,20]].forEach(([x,y,w,h])=>{
+    c.fillStyle='#8FA3B1';
+    c.beginPath(); c.roundRect(x*s,y*s,w*s,h*s,5*s); c.fill();
+  });
+  // legs
+  [[34,87,12,13],[54,87,12,13]].forEach(([x,y,w,h])=>{
+    c.fillStyle='#7B8FA1';
+    c.beginPath(); c.roundRect(x*s,y*s,w*s,h*s,4*s); c.fill();
+  });
+}
+
+function drawBoat(canvas) {
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0,0,W,H);
+  const s = W/100;
+  // sky bg
+  const sky=c.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#87CEEB'); sky.addColorStop(0.6,'#B0E0FF'); sky.addColorStop(0.6,'#1A6B9A'); sky.addColorStop(1,'#0D4F7A');
+  c.fillStyle=sky; c.beginPath(); c.arc(W/2,H/2,W/2,0,Math.PI*2); c.fill();
+  // waves
+  c.strokeStyle='rgba(255,255,255,0.4)'; c.lineWidth=2*s;
+  [[15,65],[35,68],[55,65],[75,68],[85,62]].forEach(([x,y])=>{
+    c.beginPath(); c.arc(x*s,y*s,6*s,Math.PI,0); c.stroke();
+  });
+  // hull
+  c.fillStyle='#C0392B';
+  c.beginPath(); c.moveTo(15*s,72*s); c.lineTo(85*s,72*s); c.lineTo(78*s,85*s); c.lineTo(22*s,85*s); c.closePath(); c.fill();
+  // hull stripe
+  c.fillStyle='#922B21';
+  c.fillRect(15*s,72*s,70*s,4*s);
+  // deck
+  c.fillStyle='#E8D5A0';
+  c.beginPath(); c.roundRect(20*s,62*s,60*s,10*s,3*s); c.fill();
+  // cabin
+  c.fillStyle='white';
+  c.beginPath(); c.roundRect(30*s,45*s,40*s,18*s,4*s); c.fill();
+  // cabin windows
+  [[37,51],[50,51],[63,51]].forEach(([x,y])=>{
+    c.fillStyle='#AED6F1';
+    c.beginPath(); c.roundRect((x-4)*s,(y-4)*s,8*s,7*s,2*s); c.fill();
+    c.strokeStyle='#5D9EC7'; c.lineWidth=1.5*s;
+    c.beginPath(); c.roundRect((x-4)*s,(y-4)*s,8*s,7*s,2*s); c.stroke();
+  });
+  // mast
+  c.strokeStyle='#8B6914'; c.lineWidth=3*s; c.lineCap='round';
+  c.beginPath(); c.moveTo(50*s,44*s); c.lineTo(50*s,12*s); c.stroke();
+  // sail
+  c.fillStyle='rgba(255,255,255,0.9)';
+  c.beginPath(); c.moveTo(50*s,14*s); c.lineTo(50*s,42*s); c.lineTo(72*s,35*s); c.closePath(); c.fill();
+  c.strokeStyle='rgba(200,190,170,0.5)'; c.lineWidth=1*s;
+  c.beginPath(); c.moveTo(50*s,14*s); c.lineTo(50*s,42*s); c.lineTo(72*s,35*s); c.closePath(); c.stroke();
+  // flag
+  c.fillStyle='#FFD60A';
+  c.beginPath(); c.moveTo(50*s,12*s); c.lineTo(62*s,17*s); c.lineTo(50*s,22*s); c.closePath(); c.fill();
+  // sun
+  c.fillStyle='#FFD60A';
+  c.beginPath(); c.arc(80*s,18*s,7*s,0,Math.PI*2); c.fill();
+  c.strokeStyle='rgba(255,214,10,0.4)'; c.lineWidth=2*s;
+  for(let a=0;a<8;a++){
+    const ang=a*Math.PI/4, r1=9*s, r2=13*s;
+    c.beginPath(); c.moveTo(80*s+Math.cos(ang)*r1,18*s+Math.sin(ang)*r1);
+    c.lineTo(80*s+Math.cos(ang)*r2,18*s+Math.sin(ang)*r2); c.stroke();
   }
-  function fmt(s){return`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
-  function render(){document.getElementById('timeText').textContent=fmt(remaining);buildPie(remaining/total);}
-  function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
-  function beep(freq=880,dur=0.12,vol=0.25){
-    if(!soundOn)return;
-    try{const ctx=getCtx(),o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;o.type='sine';
-      g.gain.setValueAtTime(vol,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
-      o.start();o.stop(ctx.currentTime+dur);}catch(e){}
+}
+
+function drawCar(canvas) {
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0,0,W,H);
+  const s = W/100;
+  // bg road
+  c.fillStyle='#E8E0CE'; c.beginPath(); c.arc(W/2,H/2,W/2,0,Math.PI*2); c.fill();
+  // road
+  c.fillStyle='#7D8A8A';
+  c.beginPath(); c.roundRect(0,70*s,W,25*s,0); c.fill();
+  // road marking
+  c.strokeStyle='#FFD60A'; c.lineWidth=2.5*s; c.setLineDash([8*s,6*s]);
+  c.beginPath(); c.moveTo(0,82*s); c.lineTo(W,82*s); c.stroke();
+  c.setLineDash([]);
+  // shadow
+  c.fillStyle='rgba(0,0,0,0.12)';
+  c.beginPath(); c.ellipse(50*s,72*s,36*s,5*s,0,0,Math.PI*2); c.fill();
+  // body
+  const carGrad=c.createLinearGradient(12*s,48*s,88*s,72*s);
+  carGrad.addColorStop(0,'#E74C3C'); carGrad.addColorStop(0.5,'#C0392B'); carGrad.addColorStop(1,'#922B21');
+  c.fillStyle=carGrad;
+  c.beginPath(); c.roundRect(12*s,54*s,76*s,18*s,6*s); c.fill();
+  // cabin roof
+  c.fillStyle='#C0392B';
+  c.beginPath(); c.moveTo(28*s,54*s); c.lineTo(36*s,38*s); c.lineTo(66*s,38*s); c.lineTo(74*s,54*s); c.closePath(); c.fill();
+  // windshield
+  c.fillStyle='rgba(174,214,241,0.85)';
+  c.beginPath(); c.moveTo(38*s,53*s); c.lineTo(44*s,40*s); c.lineTo(56*s,40*s); c.lineTo(62*s,53*s); c.closePath(); c.fill();
+  // side windows
+  [[30,53,10,13],[64,53,10,13]].forEach(([x,y,w,h])=>{
+    c.fillStyle='rgba(174,214,241,0.7)';
+    c.beginPath(); c.roundRect(x*s,y*s,w*s,h*s,2*s); c.fill();
+  });
+  // door line
+  c.strokeStyle='rgba(0,0,0,0.15)'; c.lineWidth=1.5*s;
+  c.beginPath(); c.moveTo(50*s,54*s); c.lineTo(50*s,72*s); c.stroke();
+  // wheels
+  [[27,69],[73,69]].forEach(([x,y])=>{
+    // tyre
+    c.fillStyle='#2C3E50';
+    c.beginPath(); c.arc(x*s,y*s,10*s,0,Math.PI*2); c.fill();
+    // rim
+    const rg=c.createRadialGradient(x*s,y*s,1*s,x*s,y*s,7*s);
+    rg.addColorStop(0,'#BDC3C7'); rg.addColorStop(1,'#95A5A6');
+    c.fillStyle=rg;
+    c.beginPath(); c.arc(x*s,y*s,7*s,0,Math.PI*2); c.fill();
+    // spokes
+    c.strokeStyle='#7F8C8D'; c.lineWidth=1.5*s;
+    for(let a=0;a<5;a++){
+      const ang=a*Math.PI*2/5;
+      c.beginPath(); c.moveTo(x*s,y*s); c.lineTo(x*s+Math.cos(ang)*6*s,y*s+Math.sin(ang)*6*s); c.stroke();
+    }
+    c.fillStyle='#95A5A6'; c.beginPath(); c.arc(x*s,y*s,2*s,0,Math.PI*2); c.fill();
+  });
+  // headlights
+  c.fillStyle='#FFEAA7';
+  c.beginPath(); c.roundRect(13*s,58*s,8*s,5*s,2*s); c.fill();
+  // tail lights
+  c.fillStyle='#E74C3C';
+  c.beginPath(); c.roundRect(79*s,58*s,8*s,5*s,2*s); c.fill();
+  c.fillStyle='rgba(255,100,80,0.6)';
+  c.beginPath(); c.roundRect(79*s,58*s,8*s,5*s,2*s); c.fill();
+}
+
+const imageDrawers = [
+  c => drawDuck(c, false),   // 0: canard jaune
+  c => drawFish(c),          // 1: poisson rouge
+  c => drawDuck(c, true),    // 2: canard multicolore
+  c => drawFlower(c),        // 3: fleur multicolore
+  c => drawRobot(c),         // 4: robot
+  c => drawBoat(c),          // 5: bateau
+  c => drawCar(c),           // 6: voiture
+];
+const imageNames = ['Canard 🐥','Poisson 🐟','Canard 🌈','Fleur 🌸','Robot 🤖','Bateau ⛵','Voiture 🚗'];
+
+// Draw thumbnails (36×36)
+const imageDataURLs = [];
+imageDrawers.forEach((draw, i) => {
+  const tc = document.getElementById('tc'+i);
+  tc.width = tc.height = 72;
+  draw(tc);
+  imageDataURLs.push(tc.toDataURL('image/png'));
+});
+
+// Full-size images (512×512)
+const fullImages = imageDrawers.map(draw => {
+  const fc = document.createElement('canvas'); fc.width = fc.height = 512;
+  draw(fc);
+  return fc.toDataURL('image/png');
+});
+
+// ═══════════════════════════════════════════
+// 3. DIAL TICKS & NUMBERS
+// ═══════════════════════════════════════════
+const CX=130, CY=130, R=130;
+const tickSvg=document.getElementById('ticksSvg'), numDiv=document.getElementById('dialNumbers');
+for(let i=0;i<60;i++){
+  const angle=(i/60)*360-90, rad=angle*Math.PI/180, maj=i%5===0, r1=maj?90:96;
+  const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('x1',CX+r1*Math.cos(rad)); line.setAttribute('y1',CY+r1*Math.sin(rad));
+  line.setAttribute('x2',CX+126*Math.cos(rad)); line.setAttribute('y2',CY+126*Math.sin(rad));
+  line.setAttribute('stroke',maj?'#8A7E68':'#B0A890'); line.setAttribute('stroke-width',maj?'2.5':'1.2'); line.setAttribute('stroke-linecap','round');
+  tickSvg.appendChild(line);
+}
+[5,10,15,20,25,30,35,40,45,50,55,60].forEach(n=>{
+  const angle=(n/60)*360-90, rad=angle*Math.PI/180, nr=107;
+  const el=document.createElement('div'); el.className='dial-num'; el.textContent=n;
+  el.style.left=(CX+nr*Math.cos(rad))/260*100+'%';
+  el.style.top=(CY+nr*Math.sin(rad))/260*100+'%';
+  numDiv.appendChild(el);
+});
+
+// ═══════════════════════════════════════════
+// 4. RESPONSIVE SIZING
+// ═══════════════════════════════════════════
+function resize(){
+  const isL=window.innerWidth>window.innerHeight;
+  const vw=window.innerWidth-32, vh=window.innerHeight-32;
+  let ds=isL?Math.min(vh-20,vw*0.55):Math.min(vw-20,vh*0.55);
+  ds=Math.max(ds,160);
+  const wrap=document.getElementById('dialWrap');
+  wrap.style.width=wrap.style.height=ds+'px';
+  const capSize=Math.round(ds*0.20);
+  const cap=document.getElementById('centreCap');
+  cap.style.width=cap.style.height=capSize+'px';
+  document.getElementById('timeText').style.fontSize=Math.round(capSize*0.28)+'px';
+  const numFs=Math.round(ds*0.075);
+  document.querySelectorAll('.dial-num').forEach(el=>el.style.fontSize=numFs+'px');
+  const pSize=isL?Math.round(vh*0.065):Math.round(vw*0.06);
+  document.querySelectorAll('.preset').forEach(el=>{
+    el.style.fontSize=Math.round(pSize*0.85)+'px';
+    el.style.padding=`${pSize*0.35}px ${pSize*0.8}px`;
+  });
+  const btnH=isL?Math.round(vh*0.10):Math.round(vw*0.11);
+  const iconS=Math.round(btnH*0.38);
+  const pb=document.getElementById('playBtn');
+  pb.style.height=btnH+'px'; pb.style.padding=`0 ${btnH*0.45}px`; pb.style.fontSize=Math.round(btnH*0.28)+'px';
+  document.querySelectorAll('#playIcon,#pauseIcon').forEach(el=>{el.style.width=el.style.height=iconS+'px';});
+  ['resetBtn','addMinBtn','soundBtn','wakeLockBtn','imgToggleBtn'].forEach(id=>{
+    const b=document.getElementById(id); if(!b)return;
+    b.style.width=b.style.height=btnH+'px';
+    b.querySelectorAll('svg').forEach(s=>{s.style.width=s.style.height=iconS+'px';});
+    if(id==='addMinBtn') b.style.fontSize=Math.round(btnH*0.3)+'px';
+  });
+  // thumb size
+  const thumbSize=Math.round(btnH*0.85);
+  document.querySelectorAll('.img-thumb').forEach(t=>{
+    t.style.width=t.style.height=thumbSize+'px';
+    t.style.fontSize=Math.round(thumbSize*0.5)+'px';
+  });
+  const layout=document.getElementById('layout');
+  layout.style.flexDirection=isL?'row':'column';
+  layout.style.flexWrap=isL?'wrap':'nowrap';
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',()=>setTimeout(resize,100));
+resize();
+
+// ═══════════════════════════════════════════
+// 5. TIMER LOGIC
+// ═══════════════════════════════════════════
+let total=5*60, remaining=total, running=false, timer=null, soundOn=true, audioCtx=null;
+const piePath=document.getElementById('piePath');
+
+function polarToXY(deg){const rad=(deg-90)*Math.PI/180;return[CX+R*Math.cos(rad),CY+R*Math.sin(rad)];}
+
+function buildPie(ratio){
+  if(ratio<=0){piePath.setAttribute('d','');return;}
+  if(ratio>=1){piePath.setAttribute('d',`M${CX} ${CY} m-${R} 0 a${R} ${R} 0 1 0 ${R*2} 0 a${R} ${R} 0 1 0 -${R*2} 0`);return;}
+  const angle=ratio*360,[x,y]=polarToXY(angle);
+  piePath.setAttribute('d',`M${CX} ${CY} L${CX} ${CY-R} A${R} ${R} 0 ${angle>180?1:0} 1 ${x} ${y} Z`);
+}
+
+function fmt(s){return`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+
+function render(){
+  document.getElementById('timeText').textContent=fmt(remaining);
+  // RED PIE = remaining time (proportional to total)
+  const ratio = remaining / total;
+  buildPie(ratio);
+  // Update image reveal: image appears as red shrinks
+  updateImageReveal(ratio);
+}
+
+// ═══════════════════════════════════════════
+// 6. IMAGE MODE
+// ═══════════════════════════════════════════
+let imageMode=false, selectedImage=-1, activeImageIndex=-1;
+
+function getActiveImage(){
+  if(selectedImage===-1){
+    // random: pick one for this session
+    if(activeImageIndex===-1) activeImageIndex=Math.floor(Math.random()*7);
+    return activeImageIndex;
   }
-  function playFinish(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.3,0.35),i*160));}
-  function setPlayState(on){
-    running=on;
-    document.getElementById('playIcon').style.display =on?'none':'';
-    document.getElementById('pauseIcon').style.display=on?'':'none';
-    document.getElementById('playLabel').textContent  =on?'PAUSE':'DÉMARRER';
+  return selectedImage;
+}
+
+function applyImage(){
+  const idx=getActiveImage();
+  const url=fullImages[idx];
+  document.getElementById('dialImage').style.backgroundImage=`url(${url})`;
+  document.getElementById('bgImage').style.backgroundImage=`url(${url})`;
+}
+
+function updateImageReveal(ratio){
+  if(!imageMode) return;
+  // ratio=1 → full red (image hidden), ratio=0 → no red (image fully visible)
+  const reveal = 1 - ratio; // 0→1 as time runs out
+  document.getElementById('dialImage').style.opacity = reveal;
+  document.getElementById('bgImage').style.opacity   = reveal * 0.35; // subtle behind layout
+}
+
+function toggleImageMode(){
+  imageMode=!imageMode;
+  const btn=document.getElementById('imgToggleBtn');
+  const picker=document.getElementById('imgPicker');
+  const layout=document.getElementById('layout');
+  const bgEl=document.getElementById('bgImage');
+
+  btn.classList.toggle('on', imageMode);
+  picker.classList.toggle('visible', imageMode);
+  layout.classList.toggle('bg-active', imageMode);
+
+  if(imageMode){
+    activeImageIndex=-1; // will pick fresh random if needed
+    applyImage();
+    updateImageReveal(remaining/total);
+  } else {
+    document.getElementById('dialImage').style.opacity=0;
+    bgEl.style.opacity=0;
   }
-  function toggleTimer(){
-    if(remaining<=0){resetTimer();return;}
-    if(!running){
-      beep(660,0.1);setPlayState(true);
-      timer=setInterval(()=>{
-        remaining--;
-        if(remaining<=10&&remaining>0)beep(500+remaining*30,0.07,0.15);
-        render();
-        if(remaining<=0){clearInterval(timer);setPlayState(false);playFinish();setTimeout(()=>document.getElementById('doneOverlay').classList.add('show'),400);}
-      },1000);
-    }else{beep(440,0.08);clearInterval(timer);setPlayState(false);}
+}
+
+function selectImage(idx){
+  selectedImage=idx;
+  activeImageIndex=idx;
+  document.getElementById('thumbRandom').classList.toggle('selected', idx===-1);
+  [0,1,2,3,4,5,6].forEach(i=>document.getElementById('thumb'+i).classList.toggle('selected',i===idx));
+  if(imageMode){ applyImage(); updateImageReveal(remaining/total); }
+}
+
+// ═══════════════════════════════════════════
+// 7. WAKE LOCK (keep screen on)
+// ═══════════════════════════════════════════
+let wakeLock=null, wakeLockEnabled=false;
+
+async function toggleWakeLock(){
+  wakeLockEnabled=!wakeLockEnabled;
+  const btn=document.getElementById('wakeLockBtn');
+  btn.classList.toggle('on', wakeLockEnabled);
+  document.getElementById('wakeOff').style.display=wakeLockEnabled?'none':'';
+  document.getElementById('wakeOn').style.display =wakeLockEnabled?'':'none';
+
+  if(wakeLockEnabled){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock=await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release',()=>{
+          if(wakeLockEnabled) requestWakeLock(); // re-request if tab visible again
+        });
+      }
+    }catch(e){ console.warn('Wake lock failed:',e); }
+  } else {
+    if(wakeLock){ await wakeLock.release(); wakeLock=null; }
   }
-  function resetTimer(){clearInterval(timer);setPlayState(false);remaining=total;render();beep(523,0.1);}
-  function setPreset(min){
-    clearInterval(timer);setPlayState(false);total=min*60;remaining=total;render();
-    document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('active',b.textContent.trim()===min+' min'));
-    beep(660,0.1);
-  }
-  function toggleSound(){
-    soundOn=!soundOn;
-    document.getElementById('soundOn').style.display =soundOn?'':'none';
-    document.getElementById('soundOff').style.display=soundOn?'none':'';
-  }
-  function dismissDone(){document.getElementById('doneOverlay').classList.remove('show');resetTimer();}
+}
+async function requestWakeLock(){
+  if(!wakeLockEnabled) return;
+  try{ wakeLock=await navigator.wakeLock.request('screen'); }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) requestWakeLock(); });
+
+// ═══════════════════════════════════════════
+// 8. DRAG TO SET TIME
+// ═══════════════════════════════════════════
+let isDragging=false;
+
+function getAngleFromEvent(e,wrap){
+  const rect=wrap.getBoundingClientRect();
+  const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+  const touch=e.touches?e.touches[0]:e;
+  const dx=touch.clientX-cx, dy=touch.clientY-cy;
+  let angle=Math.atan2(dx,-dy)*180/Math.PI;
+  if(angle<0) angle+=360;
+  return angle;
+}
+function angleToMinutes(angle){ return Math.max(1,Math.min(60,Math.round(angle/360*60))); }
+
+const wrap=document.getElementById('dialWrap');
+function onDragStart(e){ if(running)return; isDragging=true; e.preventDefault(); }
+function onDragMove(e){
+  if(!isDragging||running)return; e.preventDefault();
+  const angle=getAngleFromEvent(e,wrap);
+  const minutes=angleToMinutes(angle);
+  if(minutes*60!==total && navigator.vibrate) navigator.vibrate(8);
+  total=minutes*60; remaining=total;
+
   render();
+}
+function onDragEnd(){ if(!isDragging)return; isDragging=false; beep(660,0.08,0.15); }
+wrap.addEventListener('touchstart',onDragStart,{passive:false});
+wrap.addEventListener('touchmove',onDragMove,{passive:false});
+wrap.addEventListener('touchend',onDragEnd,{passive:false});
+wrap.addEventListener('mousedown',onDragStart);
+window.addEventListener('mousemove',onDragMove);
+window.addEventListener('mouseup',onDragEnd);
+
+// ═══════════════════════════════════════════
+// 9. AUDIO
+// ═══════════════════════════════════════════
+function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function beep(freq=880,dur=0.12,vol=0.25){
+  if(!soundOn)return;
+  try{const ctx=getCtx(),o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;o.type='sine';
+    g.gain.setValueAtTime(vol,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    o.start();o.stop(ctx.currentTime+dur);}catch(e){}
+}
+function playFinish(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.3,0.35),i*160));}
+
+// ═══════════════════════════════════════════
+// 10. CONTROLS
+// ═══════════════════════════════════════════
+function setPlayState(on){
+  running=on;
+  document.getElementById('playIcon').style.display =on?'none':'';
+  document.getElementById('pauseIcon').style.display=on?'':'none';
+  document.getElementById('playLabel').textContent  =on?'PAUSE':'DÉMARRER';
+  // reset random image pick on new session
+  if(on && selectedImage===-1) activeImageIndex=-1;
+  if(on && imageMode) applyImage();
+}
+
+function addMinute(){
+  total += 60;
+  if(!running) remaining = total;
+  else remaining = Math.min(remaining + 60, total);
+  if(navigator.vibrate) navigator.vibrate(15);
+  beep(740, 0.08, 0.2);
+  render();
+}
+
+function toggleTimer(){
+  if(remaining<=0){resetTimer();return;}
+  if(!running){
+    beep(660,0.1); setPlayState(true);
+    timer=setInterval(()=>{
+      remaining--;
+      if(remaining<=10&&remaining>0) beep(500+remaining*30,0.07,0.15);
+      render();
+      if(remaining<=0){
+        clearInterval(timer); setPlayState(false);
+        playFinish();
+        setTimeout(()=>launchConfetti(), 300);
+      }
+    },1000);
+  }else{ beep(440,0.08); clearInterval(timer); setPlayState(false); }
+}
+
+function resetTimer(){
+  clearInterval(timer); setPlayState(false);
+  remaining=total;
+  if(imageMode){document.getElementById('dialImage').style.opacity=0;document.getElementById('bgImage').style.opacity=0;}
+  render(); beep(523,0.1);
+}
+
+
+
+function toggleSound(){
+  soundOn=!soundOn;
+  document.getElementById('soundOn').style.display =soundOn?'':'none';
+  document.getElementById('soundOff').style.display=soundOn?'none':'';
+}
+
+// ── Confetti engine ──
+function launchConfetti(){
+  const canvas=document.getElementById('confettiCanvas');
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  canvas.classList.add('show');
+  const ctx=canvas.getContext('2d');
+  const colors=['#C0392B','#E67E22','#F1C40F','#27AE60','#2980B9','#8E44AD','#E91E8C','#FF6B6B','#FFD93D','#4ECDC4'];
+  const pieces=[];
+  const N=120;
+  for(let i=0;i<N;i++){
+    pieces.push({
+      x: Math.random()*canvas.width,
+      y: -20 - Math.random()*canvas.height*0.5,
+      w: 7+Math.random()*8,
+      h: 4+Math.random()*5,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      rot: Math.random()*Math.PI*2,
+      rotSpeed: (Math.random()-0.5)*0.15,
+      vx: (Math.random()-0.5)*3,
+      vy: 2+Math.random()*4,
+      opacity:1,
+      shape: Math.random()<0.5 ? 'rect' : 'circle'
+    });
+  }
+  const startTime=performance.now();
+  const duration=5000;
+  function frame(now){
+    const elapsed=now-startTime;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const fadeStart=3500;
+    const globalAlpha=elapsed>fadeStart ? Math.max(0,1-(elapsed-fadeStart)/(duration-fadeStart)) : 1;
+    pieces.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.rotSpeed; p.vy+=0.06; // gravity
+      ctx.save();
+      ctx.globalAlpha=globalAlpha*p.opacity;
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle=p.color;
+      if(p.shape==='circle'){
+        ctx.beginPath(); ctx.arc(0,0,p.w/2,0,Math.PI*2); ctx.fill();
+      } else {
+        ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      }
+      ctx.restore();
+    });
+    if(elapsed<duration){ requestAnimationFrame(frame); }
+    else { canvas.classList.remove('show'); ctx.clearRect(0,0,canvas.width,canvas.height); }
+  }
+  requestAnimationFrame(frame);
+}
+
+render();
 </script>
 </body>
 </html>
